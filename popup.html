@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>视频资源下载器</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      width: 420px;
+      min-height: 300px;
+      max-height: 600px;
+      background: #1a1a2e;
+      color: #eee;
+      font-size: 13px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ===== 头部 ===== */
+    .header {
+      background: #16213e;
+      padding: 12px 14px;
+      border-bottom: 1px solid #0f3460;
+      flex-shrink: 0;
+    }
+
+    .header h1 {
+      font-size: 15px;
+      font-weight: 600;
+      color: #e94560;
+      margin-bottom: 8px;
+    }
+
+    .header .page-info {
+      font-size: 11px;
+      color: #888;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 390px;
+    }
+
+    /* ===== 设置区 ===== */
+    .settings-bar {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-top: 8px;
+    }
+
+    .settings-bar input[type="text"] {
+      flex: 1;
+      background: #0f3460;
+      border: 1px solid #1a4a8a;
+      border-radius: 5px;
+      color: #eee;
+      padding: 5px 8px;
+      font-size: 12px;
+      outline: none;
+    }
+
+    .settings-bar input[type="text"]::placeholder {
+      color: #555;
+    }
+
+    .settings-bar input[type="text"]:focus {
+      border-color: #e94560;
+    }
+
+    .settings-bar label {
+      color: #aaa;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .settings-bar input[type="checkbox"] {
+      width: 14px;
+      height: 14px;
+      accent-color: #e94560;
+    }
+
+    .btn-save-settings {
+      background: #e94560;
+      border: none;
+      color: white;
+      border-radius: 4px;
+      padding: 5px 10px;
+      font-size: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .btn-save-settings:hover {
+      background: #ff2e63;
+    }
+
+    /* ===== 视频列表 ===== */
+    .video-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 6px 0;
+    }
+
+    .video-list::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .video-list::-webkit-scrollbar-track {
+      background: #1a1a2e;
+    }
+
+    .video-list::-webkit-scrollbar-thumb {
+      background: #0f3460;
+      border-radius: 3px;
+    }
+
+    /* ===== 单个视频项 ===== */
+    .video-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border-bottom: 1px solid #0f346020;
+      transition: background 0.15s;
+    }
+
+    .video-item:hover {
+      background: #0f346030;
+    }
+
+    .video-item:last-child {
+      border-bottom: none;
+    }
+
+    .video-icon {
+      width: 36px;
+      height: 36px;
+      background: #e9456020;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .video-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .video-name {
+      font-size: 12px;
+      color: #e8e8e8;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 3px;
+    }
+
+    .video-meta {
+      font-size: 10px;
+      color: #666;
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .video-meta .type-tag {
+      background: #0f3460;
+      color: #4da6ff;
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-size: 10px;
+    }
+
+    .video-meta .hls-tag {
+      background: #e9456030;
+      color: #e94560;
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-size: 10px;
+    }
+
+    .video-actions {
+      display: flex;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    .btn-download {
+      background: #e94560;
+      border: none;
+      color: white;
+      border-radius: 4px;
+      padding: 5px 10px;
+      font-size: 11px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .btn-download:hover {
+      background: #ff2e63;
+    }
+
+    .btn-download:disabled {
+      background: #444;
+      color: #888;
+      cursor: not-allowed;
+    }
+
+    .btn-copy {
+      background: #0f3460;
+      border: 1px solid #1a4a8a;
+      color: #4da6ff;
+      border-radius: 4px;
+      padding: 5px 8px;
+      font-size: 11px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .btn-copy:hover {
+      background: #1a4a8a;
+    }
+
+    /* ===== 空状态 ===== */
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: #555;
+    }
+
+    .empty-state .icon {
+      font-size: 40px;
+      margin-bottom: 10px;
+    }
+
+    .empty-state p {
+      font-size: 12px;
+    }
+
+    /* ===== 加载状态 ===== */
+    .loading-state {
+      text-align: center;
+      padding: 30px 20px;
+      color: #666;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 24px;
+      height: 24px;
+      border: 3px solid #0f3460;
+      border-top-color: #e94560;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 10px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ===== 底部状态栏 ===== */
+    .footer {
+      background: #16213e;
+      border-top: 1px solid #0f3460;
+      padding: 8px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .footer .stats {
+      font-size: 11px;
+      color: #555;
+    }
+
+    .footer .refresh-btn {
+      background: transparent;
+      border: 1px solid #0f3460;
+      color: #888;
+      border-radius: 4px;
+      padding: 3px 10px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .footer .refresh-btn:hover {
+      background: #0f3460;
+      color: #eee;
+    }
+
+    /* ===== Toast 通知 ===== */
+    .toast {
+      position: fixed;
+      bottom: 50px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #0f3460;
+      color: #eee;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 12px;
+      z-index: 100;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+    }
+
+    .toast.show {
+      opacity: 1;
+    }
+
+    /* ===== 分割线 ===== */
+    .divider {
+      height: 1px;
+      background: #0f346040;
+      margin: 0 14px;
+    }
+
+    /* ===== Section标题 ===== */
+    .section-title {
+      padding: 6px 14px 4px;
+      font-size: 10px;
+      color: #555;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>🎬 视频资源下载器</h1>
+    <div class="page-info" id="pageInfo">正在获取页面信息...</div>
+    <div class="settings-bar">
+      <input type="text" id="savePathInput" placeholder="子文件夹路径（如 videos/2026）" title="将保存到 Downloads/子文件夹">
+      <label title="每次下载都弹出另存为对话框">
+        <input type="checkbox" id="saveAsCheckbox">
+        另存
+      </label>
+      <button class="btn-save-settings" id="saveSettingsBtn">保存</button>
+    </div>
+  </div>
+
+  <div class="video-list" id="videoList">
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>正在扫描页面视频资源...</p>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span class="stats" id="stats">共 0 个视频</span>
+    <button class="refresh-btn" id="refreshBtn">⟳ 刷新</button>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
