@@ -3,7 +3,6 @@
  */
 
 let currentTabId = null;
-let settings = { savePath: '' };
 
 // ===== Toast 提示 =====
 function showToast(msg, duration = 2000) {
@@ -38,35 +37,13 @@ async function fetchDomVideos(tabId) {
   });
 }
 
-// ===== 获取设置 =====
-async function loadSettings() {
-  return new Promise((resolve) => {
-    chrome.runtime.sendMessage({ action: 'getSettings' }, (result) => {
-      resolve(result || {});
-    });
-  });
-}
-
-// ===== 保存设置 =====
-async function saveSettings(settingsObj) {
-  return new Promise((resolve) => {
-    chrome.runtime.sendMessage(
-      { action: 'saveSettings', settings: settingsObj },
-      () => resolve()
-    );
-  });
-}
-
-// ===== 下载视频 =====
+// ===== 下载视频（弹出系统另存为对话框，用户现场选择位置）=====
 function downloadVideo(url, filename) {
-  const savePath = settings.savePath || '';
-  const pathHint = savePath ? ` (到 ${savePath}/)` : '';
-
   chrome.runtime.sendMessage(
-    { action: 'downloadVideo', url, filename, savePath, saveAs: false },
+    { action: 'downloadVideo', url, filename, savePath: '', saveAs: true },
     (response) => {
       if (response?.success) {
-        showToast(`✅ 下载开始${pathHint}: ${filename}`);
+        showToast(`✅ 下载开始: ${filename}`);
       } else {
         showToast(`❌ 下载失败: ${response?.error || '未知错误'}`, 3000);
       }
@@ -238,47 +215,7 @@ async function loadVideos() {
 // ===== 事件绑定 =====
 document.getElementById('refreshBtn').addEventListener('click', loadVideos);
 
-// ===== 选择保存目录（使用 File System Access API） =====
-document.getElementById('selectDirBtn').addEventListener('click', async () => {
-  try {
-    // 使用 showDirectoryPicker 让用户在本地文件系统选择目录
-    const dirHandle = await window.showDirectoryPicker({
-      mode: 'readwrite',
-      startIn: 'downloads'
-    });
-
-    // 保存目录路径引用
-    const pathName = dirHandle.name;
-    
-    // 存储目录句柄信息（无法直接获取完整路径，存名称做标识）
-    const displayPath = `Downloads/${pathName}`;
-    document.getElementById('selectedPath').textContent = `📁 ${displayPath}`;
-    document.getElementById('selectedPath').style.color = '#4da6ff';
-
-    // 保存到 storage
-    settings.savePath = pathName;
-    await saveSettings({ savePath: pathName });
-    showToast(`✅ 已选择: ${displayPath}`);
-
-  } catch (err) {
-    if (err.name !== 'AbortError') {
-      showToast(`❌ 选择失败: ${err.message}`, 3000);
-    }
-  }
-});
-
 // 初始化
 (async () => {
-  const loaded = await loadSettings();
-  settings = loaded || { savePath: '' };
-  
-  // 显示当前路径
-  if (settings.savePath) {
-    document.getElementById('selectedPath').textContent = `📁 Downloads/${settings.savePath}`;
-    document.getElementById('selectedPath').style.color = '#4da6ff';
-  } else {
-    document.getElementById('selectedPath').textContent = '未选择目录（默认: Downloads）';
-  }
-
   await loadVideos();
 })();
