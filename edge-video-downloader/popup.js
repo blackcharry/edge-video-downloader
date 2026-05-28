@@ -3,7 +3,7 @@
  */
 
 let currentTabId = null;
-let settings = { savePath: '', saveAs: false };
+let settings = { savePath: '' };
 
 // ===== Toast 提示 =====
 function showToast(msg, duration = 2000) {
@@ -59,12 +59,11 @@ async function saveSettings(settingsObj) {
 
 // ===== 下载视频 =====
 function downloadVideo(url, filename) {
-  const savePath = document.getElementById('savePathInput').value.trim();
-  const saveAs = document.getElementById('saveAsCheckbox').checked;
+  const savePath = settings.savePath || '';
   const pathHint = savePath ? ` (到 ${savePath}/)` : '';
 
   chrome.runtime.sendMessage(
-    { action: 'downloadVideo', url, filename, savePath, saveAs },
+    { action: 'downloadVideo', url, filename, savePath, saveAs: false },
     (response) => {
       if (response?.success) {
         showToast(`✅ 下载开始${pathHint}: ${filename}`);
@@ -239,18 +238,47 @@ async function loadVideos() {
 // ===== 事件绑定 =====
 document.getElementById('refreshBtn').addEventListener('click', loadVideos);
 
-document.getElementById('saveSettingsBtn').addEventListener('click', async () => {
-  const savePath = document.getElementById('savePathInput').value.trim();
-  const saveAs = document.getElementById('saveAsCheckbox').checked;
-  await saveSettings({ savePath, saveAs });
-  settings = { savePath, saveAs };
-  showToast('✅ 设置已保存');
+// ===== 选择保存目录（使用 File System Access API） =====
+document.getElementById('selectDirBtn').addEventListener('click', async () => {
+  try {
+    // 使用 showDirectoryPicker 让用户在本地文件系统选择目录
+    const dirHandle = await window.showDirectoryPicker({
+      mode: 'readwrite',
+      startIn: 'downloads'
+    });
+
+    // 保存目录路径引用
+    const pathName = dirHandle.name;
+    
+    // 存储目录句柄信息（无法直接获取完整路径，存名称做标识）
+    const displayPath = `Downloads/${pathName}`;
+    document.getElementById('selectedPath').textContent = `📁 ${displayPath}`;
+    document.getElementById('selectedPath').style.color = '#4da6ff';
+
+    // 保存到 storage
+    settings.savePath = pathName;
+    await saveSettings({ savePath: pathName });
+    showToast(`✅ 已选择: ${displayPath}`);
+
+  } catch (err) {
+    if (err.name !== 'AbortError') {
+      showToast(`❌ 选择失败: ${err.message}`, 3000);
+    }
+  }
 });
 
 // 初始化
 (async () => {
-  settings = await loadSettings();
-  document.getElementById('savePathInput').value = settings.savePath || '';
-  document.getElementById('saveAsCheckbox').checked = settings.saveAs || false;
+  const loaded = await loadSettings();
+  settings = loaded || { savePath: '' };
+  
+  // 显示当前路径
+  if (settings.savePath) {
+    document.getElementById('selectedPath').textContent = `📁 Downloads/${settings.savePath}`;
+    document.getElementById('selectedPath').style.color = '#4da6ff';
+  } else {
+    document.getElementById('selectedPath').textContent = '未选择目录（默认: Downloads）';
+  }
+
   await loadVideos();
 })();
